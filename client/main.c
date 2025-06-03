@@ -9,6 +9,12 @@
 #define PORT 8888
 #define SERVER_IP "127.0.0.1"
 
+// Khai báo biến toàn cục
+char my_username[64] = "";
+
+// Prototype
+void save_chat_history(const char *username, const char *msg);
+
 void *recv_thread(void *arg) {
     int sockfd = *(int *)arg;
     char buffer[1024];
@@ -16,7 +22,12 @@ void *recv_thread(void *arg) {
         int bytes = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
         if (bytes <= 0) break;
         buffer[bytes] = '\0';
-        printf("\r%s", buffer);
+        printf("%s", buffer);
+
+        // Ghi lịch sử nhận
+        extern char my_username[64];
+        save_chat_history(my_username, buffer);
+
         printf("[You]: ");
         fflush(stdout);
     }
@@ -30,6 +41,17 @@ void show_menu() {
     printf("3. Thoat\n");
     printf("Chon: ");
     fflush(stdout);
+}
+
+void save_chat_history(const char *username, const char *msg) {
+    char filename[128];
+    snprintf(filename, sizeof(filename), "%s_history.txt", username);
+    FILE *f = fopen(filename, "a");
+    if (f) {
+        // Ghi tin nhắn vào file
+        fprintf(f, "%s", msg);
+        fclose(f);
+    }
 }
 
 int main() {
@@ -46,6 +68,7 @@ int main() {
 
     int authenticated = 0;
     char buffer[1024];
+    char my_username[64] = "";
     while (!authenticated) {
         show_menu();
         int choice;
@@ -90,6 +113,7 @@ int main() {
 
         if (strstr(buffer, "thanh cong") != NULL) {
             authenticated = 1;
+            strcpy(my_username, username); // Lưu lại username
         }
     }
 
@@ -107,6 +131,12 @@ int main() {
             break;
         }
         send(sockfd, buffer, strlen(buffer), 0);
+
+        // Ghi lịch sử gửi
+        char line[1100];
+        snprintf(line, sizeof(line), "[You]: %s", buffer);
+        save_chat_history(my_username, line);
+
         printf("[You]: ");
         fflush(stdout);
     }

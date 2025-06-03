@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <netinet/in.h>
+#include <sqlite3.h>
 
 #define PORT 8888
 #define MAX_CLIENTS 100
@@ -13,6 +14,10 @@ int clients[MAX_CLIENTS];
 char online_users[MAX_USERS][64];
 int online_count = 0;
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
+sqlite3 *db;
+
+// Thêm dòng này trước khi dùng save_message
+void save_message(const char *username, const char *content);
 
 // Kiểm tra username đã tồn tại chưa
 int user_exists(const char *username) {
@@ -165,6 +170,9 @@ void *handle_client(void *arg) {
 
         char msg[1100];
         snprintf(msg, sizeof(msg), "[%s]: %s", username, buffer);
+
+        save_message(username, buffer); // Ghi vào SQLite
+
         broadcast(msg, client_fd);
     }
 
@@ -188,7 +196,44 @@ cleanup:
     return NULL;
 }
 
+int init_db() {
+    int rc = sqlite3_open("chat.db", &db);
+    if (rc) {
+        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+        return 0;
+    }
+    const char *sql = "CREATE TABLE IF NOT EXISTS messages ("
+                      "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                      "username TEXT,"
+                      "content TEXT,"
+                      "timestamp DATETIME DEFAULT CURRENT_TIMESTAMP"
+                      ");";
+    char *errmsg = NULL;
+    rc = sqlite3_exec(db, sql, 0, 0, &errmsg);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "SQL error: %s\n", errmsg);
+        sqlite3_free(errmsg);
+        return 0;
+    }
+    return 1;
+}
+
+void save_message(const char *username, const char *content) {
+    const char *sql = "INSERT INTO messages (username, content) VALUES (?, ?);";
+    sqlite3_stmt *stmt;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, content, -1, SQLITE_STATIC);
+        sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+    }
+}
+
 int main() {
+    if (!init_db()) {
+        fprintf(stderr, "Failed to initialize database.\n");
+        return 1;
+    }
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr = {0};
     addr.sin_family = AF_INET;
@@ -212,5 +257,6 @@ int main() {
         pthread_detach(tid);
     }
     close(server_fd);
+    sqlite3_close(db);
     return 0;
 }
