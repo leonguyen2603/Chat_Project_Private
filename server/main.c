@@ -169,7 +169,13 @@ void *handle_client(void *arg) {
     }
 
 cleanup:
-    if (username[0]) remove_online(username);
+    if (username[0]) {
+        remove_online(username);
+        // Thông báo cho các client khác
+        char msg[128];
+        snprintf(msg, sizeof(msg), "[%s da roi phong chat]\n", username);
+        broadcast(msg, client_fd);
+    }
     close(client_fd);
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < MAX_CLIENTS; ++i) {

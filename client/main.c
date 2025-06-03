@@ -102,6 +102,10 @@ int main() {
     pthread_create(&tid, NULL, recv_thread, &sockfd);
 
     while (fgets(buffer, sizeof(buffer), stdin)) {
+        if (strncmp(buffer, "@exit@", 6) == 0) {
+            printf("Dang thoat khoi cuoc tro chuyen...\n");
+            break;
+        }
         send(sockfd, buffer, strlen(buffer), 0);
         printf("[You]: ");
         fflush(stdout);
