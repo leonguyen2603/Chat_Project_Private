@@ -142,6 +142,16 @@ void *handle_client(void *arg) {
         }
     }
 
+    // Thêm vào mảng clients[] tại đây!
+    pthread_mutex_lock(&clients_mutex);
+    for (int i = 0; i < MAX_CLIENTS; ++i) {
+        if (clients[i] == 0) {
+            clients[i] = client_fd;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&clients_mutex);
+
     add_online(username);
 
     // Đã xác thực, cho phép chat
@@ -187,20 +197,7 @@ int main() {
     while (1) {
         int client_fd = accept(server_fd, NULL, NULL);
 
-        pthread_mutex_lock(&clients_mutex);
-        int i;
-        for (i = 0; i < MAX_CLIENTS; ++i) {
-            if (clients[i] == 0) {
-                clients[i] = client_fd;
-                break;
-            }
-        }
-        pthread_mutex_unlock(&clients_mutex);
-
-        if (i == MAX_CLIENTS) {
-            close(client_fd);
-            continue;
-        }
+        // KHÔNG thêm vào clients[] ở đây nữa!
 
         int *pclient = malloc(sizeof(int));
         *pclient = client_fd;
