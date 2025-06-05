@@ -1,1 +1,109 @@
 [You]: hehehehe
+=== Ban da vao phong chat: main_room ===
+[You]: [You]: hello
+=== Ban da vao phong chat: main_room ===
+[You]: (Khong co lich su tin nhan)
+=== Ban da vao phong chat: main_room ===
+[You]: [You]: hello
+(Khong co lich su tin nhan)
+=== Ban da vao phong chat: main_room ===
+[You]: [No3 da tham gia phong chat]
+[You]: hello
+[No3 da tham gia phong chat]
+[No3 da roi phong chat]
+[No3 da tham gia phong chat]
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: 1
+[No3]: hello
+[No3]: hello
+[No3 da roi phong chat]
+[No3 da tham gia phong chat]
+[No3]: hello
+[No3 da roi phong chat]
+[No3 da tham gia phong chat]
+[No3 da roi phong chat]
+[No3 da tham gia phong chat]
+[No3 da roi phong chat]
+[No3 da tham gia phong chat]
+[No3 da roi phong chat]
+[No3 da tham gia phong chat]
+[No3]: hello
+[No1]: heheh
+(Khong co lich su tin nhan)
+=== Ban da vao phong chat: main_room ===
+[You]: [You]: hello from 2
+[You]: 222222
+[No1]: 111111
+[No3]: 333333
+[No1 da roi phong chat]
+[No1 da tham gia phong chat]
+[No1 da roi phong chat]
+[No1 da tham gia phong chat]
+(Khong co lich su tin nhan)
+=== Ban da vao phong chat: main_room ===
+[You]: [You]: 1
+[You]: 1
+[You]: 1
+(Khong co lich su tin nhan)
+=== Ban da vao phong chat: main_room ===
+[You]: [No3 da tham gia phong chat]
+[No3 da tham gia phong chat]
+[No1 da roi phong chat]
+(Khong co lich su tin nhan)
+=== Ban da vao phong chat: main_room ===
+[You]: [You]: hello
+[No3 da tham gia phong chat]
+[No3]: no3
+[No1]: no1
+[You]: NO2
+(Khong co lich su tin nhan)
+=== Ban da vao phong chat: main_room ===
+[You]: [You]: hello
+[No1 da roi phong chat]
+(Khong co lich su tin nhan)
+=== Ban da vao phong chat: main_room ===
+[You]: [You]: hello
+[No1 da tham gia phong chat]
+[You]: (Khong co lich su tin nhan)
+=== Ban da vao phong chat: main_room ===
+[You]: [You]: hello
+(Khong co lich su tin nhan)
+=== Ban da vao phong chat: main_room ===
+=== Ban da vao phong chat: main_room ===
+(Khong co lich su tin nhan)
+[You]: [You]: hello
+=== Ban da vao phong chat: main_room ===
+(Khong co lich su tin nhan)
+[You]: [You]: hello
+(Khong co lich su tin nhan)
+[No1]: hhello
+[You]: hello
+[No3 da tham gia phong chat]
+[No3]: 1
+[No3 da roi phong chat]
+[No3 da tham gia phong chat]
+[No3]: 1
+[No3 da roi phong chat]
+[No1 da tham gia phong chat]
+[No3]: 1
+[No1 da roi phong chat]
+[You]: hello
+[You]: hello
+[No1 da roi phong chat]
+[No1 da tham gia phong chat]
+[You]: hello from client 2

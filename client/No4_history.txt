@@ -1,0 +1,6 @@
+[No2 da tham gia phong chat]
+[No2]: hello
+[No1 da roi phong chat]
+[No2 da roi phong chat]
+[No3 da roi phong chat]
+[You]: hello
