@@ -15,26 +15,34 @@ char my_username[64] = "";
 // Prototype
 void save_chat_history(const char *username, const char *msg);
 
-void *recv_thread(void *arg) {
+void *recv_thread(void *arg) 
+{
     int sockfd = *(int *)arg;
     char buffer[1024];
-    while (1) {
+    while (1) 
+    {
         int bytes = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
         if (bytes <= 0) break;
         buffer[bytes] = '\0';
+
+        // Xóa dòng hiện tại (dòng nhập của user)
+        printf("\r\33[2K"); // Đưa về đầu dòng và xóa dòng
+
         printf("%s", buffer);
 
-        // Ghi lịch sử nhận
         extern char my_username[64];
         save_chat_history(my_username, buffer);
 
+        // In lại prompt nhập
         printf("[You]: ");
         fflush(stdout);
     }
     return NULL;
 }
 
-void show_menu() {
+// Menu 
+void show_menu() 
+{
     printf("==== MENU ====\n");
     printf("1. Dang nhap\n");
     printf("2. Dang ky\n");
@@ -43,25 +51,35 @@ void show_menu() {
     fflush(stdout);
 }
 
-void save_chat_history(const char *username, const char *msg) {
+// Save chat history to a file
+// The file is named "<username>_history.txt"
+void save_chat_history(const char *username, const char *msg) 
+{
     char filename[128];
     snprintf(filename, sizeof(filename), "%s_history.txt", username);
     FILE *f = fopen(filename, "a");
-    if (f) {
-        // Ghi tin nhắn vào file
+    if (f) 
+    {
         fprintf(f, "%s", msg);
         fclose(f);
     }
 }
 
-int main() {
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    struct sockaddr_in addr = {0};
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(PORT);
-    inet_pton(AF_INET, SERVER_IP, &addr.sin_addr);
+int main() 
+{
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0); // TCP
+    if (sockfd < 0) 
+    {
+        perror("socket");
+        return 1;
+    }
+    struct sockaddr_in addr = {0}; // Server address structure
+    addr.sin_family = AF_INET; // IPv4
+    addr.sin_port = htons(PORT); // Port number
+    inet_pton(AF_INET, SERVER_IP, &addr.sin_addr); // Convert IP address from text to binary
 
-    if (connect(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+    if (connect(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) 
+    {
         perror("connect");
         return 1;
     }
@@ -69,22 +87,27 @@ int main() {
     int authenticated = 0;
     char buffer[1024];
     char my_username[64] = "";
-    while (!authenticated) {
+    while (!authenticated) 
+    {
         show_menu();
         int choice;
-        if (scanf("%d", &choice) != 1) {
-            // Xử lý nhập sai kiểu dữ liệu
+        // Check if scanf was invalid
+        if (scanf("%d", &choice) != 1) 
+        {
             printf("Vui long nhap so (1-3)!\n");
-            while (getchar() != '\n'); // Xóa bộ đệm
+            while (getchar() != '\n'); // Clear invalid input
             continue;
         }
-        getchar(); // bỏ ký tự '\n'
+        getchar(); // Clear newline character after scanf
 
-        if (choice == 3) {
+        if (choice == 3) 
+        {
             close(sockfd);
             return 0;
         }
-        if (choice != 1 && choice != 2) {
+
+        if (choice != 1 && choice != 2 && choice != 3) 
+        {
             printf("Lua chon khong hop le!\n");
             continue;
         }
@@ -97,13 +120,14 @@ int main() {
         fgets(password, sizeof(password), stdin);
         password[strcspn(password, "\n")] = 0;
 
-        // Gửi lựa chọn, username, password lên server
+        // Send data to server
         snprintf(buffer, sizeof(buffer), "%d|%s|%s\n", choice, username, password);
         send(sockfd, buffer, strlen(buffer), 0);
 
-        // Nhận phản hồi từ server
+        // Receive response from server
         int bytes = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
-        if (bytes <= 0) {
+        if (bytes <= 0) 
+        {
             printf("Mat ket noi voi server!\n");
             close(sockfd);
             return 1;
@@ -111,7 +135,8 @@ int main() {
         buffer[bytes] = '\0';
         printf("%s", buffer);
 
-        if (strstr(buffer, "thanh cong") != NULL) {
+        if (strstr(buffer, "thanh cong") != NULL) 
+        {
             authenticated = 1;
             strcpy(my_username, username); // Lưu lại username
         }
@@ -119,15 +144,19 @@ int main() {
 
     // Đã xác thực, vào giao diện chat
     printf("=== Ban da vao phong chat ===\n");
+    fflush(stdout);
     printf("[You]: ");
     fflush(stdout);
 
     pthread_t tid;
     pthread_create(&tid, NULL, recv_thread, &sockfd);
 
-    while (fgets(buffer, sizeof(buffer), stdin)) {
-        if (strncmp(buffer, "@exit@", 6) == 0) {
+    while (fgets(buffer, sizeof(buffer), stdin)) 
+    {
+        if (strncmp(buffer, "@exit@", 6) == 0) 
+        {
             printf("Dang thoat khoi cuoc tro chuyen...\n");
+            fflush(stdout);
             break;
         }
         send(sockfd, buffer, strlen(buffer), 0);

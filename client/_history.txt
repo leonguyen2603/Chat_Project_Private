@@ -11,3 +11,76 @@
 [No3]: lolololo
 [No1]: 4646464646
 [No1]: 4646464646
+[No2 da tham gia phong chat]
+[No2]: hello form 2
+[No3 da tham gia phong chat]
+[No3 da tham gia phong chat]
+[No3]: Hello from 3
+[No3]: Hello from 3
+[No3 da roi phong chat]
+[No3 da roi phong chat]
+[No3 da tham gia phong chat]
+[No3 da tham gia phong chat]
+[No3 da roi phong chat]
+[No3 da roi phong chat]
+[No2 da roi phong chat]
+[No2 da tham gia phong chat]
+[No2]: hello
+[No1]: hello
+[No2 da tham gia phong chat]
+[No2]: hello
+[No1]: hello
+[No2 da roi phong chat]
+[No2 da tham gia phong chat]
+[No2 da roi phong chat]
+[No2 da tham gia phong chat]
+[No1]: Hello from 1
+[No2]: Hello from 2
+[No2 da roi phong chat]
+[No2 da tham gia phong chat]
+[No2]: hello
+[No2]: hello
+[No2]: hello
+[No1]: hello
+[No1]: hello
+[No2 da roi phong chat]
+[No2 da tham gia phong chat]
+[No2 da tham gia phong chat]
+[No2]: hello from 2
+[No1]: Hello from 1
+[No1]: hello
+[No2]: hello from 2
+[No2 da tham gia phong chat]
+[No2]: Hello
+[No2]: Hello
+[No2]: Hello
+[No2]: Hello
+[No2 da tham gia phong chat]
+[No2]: Hello
+[No2]: Hello
+[No2]: hehehe
+[No1]: hehehe
+[No1 da roi phong chat]
+[No2 da tham gia phong chat]
+[No2]: hello
+[No2]: hello
+[No1 da roi phong chat]
+[No2 da tham gia phong chat]
+[No2]: hello
+[No2]: hello
+[No2]: hello
+[No2]: hello
+[No1]: hello
+[No1]: hrllo
+[No2]: client 2
+[No2 da tham gia phong chat]
+[No2]: hello
+[No2]: hello
+[No2]: helooo
+[No3 da tham gia phong chat]
+[No3 da tham gia phong chat]
+[No3]: hellloooo
+[No3]: hellloooo
+[No2 da roi phong chat]
+[No2 da roi phong chat]
+[No3 da roi phong chat]
