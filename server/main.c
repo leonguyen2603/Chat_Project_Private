@@ -5,6 +5,8 @@
 #include <pthread.h> // pthread_create, pthread_mutex_lock
 #include <netinet/in.h> // socket, bind, listen, accept
 #include <sqlite3.h> // SQLite
+#include <sys/stat.h> // mkdir
+#include <errno.h>
 
 #define PORT 8888
 #define MAX_CLIENTS 100
@@ -127,18 +129,164 @@ void broadcast(char *msg, int sender_fd)
     pthread_mutex_unlock(&clients_mutex);
 }
 
-// Handle client connection
-// This function runs in a separate thread for each client
-// It handles login, registration, and chat functionality
-// It receives messages from the client, processes them, and broadcasts them to other clients
+typedef struct {
+    int fd;
+    char username[64];
+} client_state_t;
+
+client_state_t client_states[MAX_CLIENTS];
+
+// Tạo thư mục nếu chưa có
+void ensure_private_folder() {
+    struct stat st = {0};
+    if (stat("private", &st) == -1) {
+        mkdir("private", 0700);
+    }
+}
+
+// Tạo tên file private cho 2 user (theo thứ tự alpha)
+void get_private_filename(const char *user1, const char *user2, char *filename, size_t size) {
+    char u1[64], u2[64];
+    strncpy(u1, user1, 63); u1[63] = 0;
+    strncpy(u2, user2, 63); u2[63] = 0;
+    if (strcmp(u1, u2) > 0) { char tmp[64]; strcpy(tmp, u1); strcpy(u1, u2); strcpy(u2, tmp); }
+    snprintf(filename, size, "private/%s_%s.txt", u1, u2);
+}
+
+// Lưu tin nhắn private vào file
+void save_private_message(const char *from, const char *to, const char *msg) {
+    ensure_private_folder();
+    char filename[256];
+    get_private_filename(from, to, filename, sizeof(filename));
+    FILE *f = fopen(filename, "a");
+    if (f) {
+        fprintf(f, "[PRIVATE][%s->%s]: %s", from, to, msg);
+        fclose(f);
+    }
+}
+
+// Thêm user vào private_list file
+void add_private_list(const char *user, const char *peer) {
+    ensure_private_folder();
+    char filename[256];
+    snprintf(filename, sizeof(filename), "private/private_list_%s.txt", user);
+    // Kiểm tra đã có chưa
+    FILE *f = fopen(filename, "r");
+    char line[64];
+    int found = 0;
+    if (f) {
+        while (fgets(line, sizeof(line), f)) {
+            line[strcspn(line, "\r\n")] = 0;
+            if (strcmp(line, peer) == 0) { found = 1; break; }
+        }
+        fclose(f);
+    }
+    if (!found) {
+        f = fopen(filename, "a");
+        if (f) { fprintf(f, "%s\n", peer); fclose(f); }
+    }
+}
+
+// Gửi private_list cho client
+void send_private_list(const char *user, int client_fd) {
+    char filename[256];
+    snprintf(filename, sizeof(filename), "private/private_list_%s.txt", user);
+    FILE *f = fopen(filename, "r");
+    if (!f) {
+        char *msg = "Chua co lich su chat rieng voi ai!\n";
+        send(client_fd, msg, strlen(msg), 0);
+        return;
+    }
+    char line[128];
+    while (fgets(line, sizeof(line), f)) {
+        send(client_fd, line, strlen(line), 0);
+    }
+    fclose(f);
+}
+
+// Gửi lịch sử private cho client
+void send_private_history(const char *user, const char *peer, int client_fd) {
+    char filename[256];
+    get_private_filename(user, peer, filename, sizeof(filename));
+    FILE *f = fopen(filename, "r");
+    if (!f) {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "Khong co lich su chat rieng voi %s\n", peer);
+        send(client_fd, msg, strlen(msg), 0);
+        return;
+    }
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {
+        send(client_fd, line, strlen(line), 0);
+    }
+    fclose(f);
+}
+
+// Tìm fd theo username
+int find_fd_by_username(const char *username) {
+    pthread_mutex_lock(&clients_mutex);
+    for (int i = 0; i < MAX_CLIENTS; ++i) {
+        if (client_states[i].fd != 0 && strcmp(client_states[i].username, username) == 0) {
+            pthread_mutex_unlock(&clients_mutex);
+            return client_states[i].fd;
+        }
+    }
+    pthread_mutex_unlock(&clients_mutex);
+    return 0;
+}
+
+// Initialize the SQLite database
+// Creates the messages table if it doesn't exist
+// Returns 1 on success, 0 on failure
+int init_db() 
+{
+    int rc = sqlite3_open("chat.db", &db); // Open the database file
+                                           // If the database file doesn't exist, it will be created
+    if (rc) 
+    {
+        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+        return 0;
+    }
+    const char *sql = "CREATE TABLE IF NOT EXISTS messages ("
+                      "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                      "username TEXT,"
+                      "content TEXT,"
+                      "timestamp DATETIME DEFAULT CURRENT_TIMESTAMP"
+                      ");";
+    char *errmsg = NULL;
+    rc = sqlite3_exec(db, sql, 0, 0, &errmsg);
+    if (rc != SQLITE_OK) 
+    {
+        fprintf(stderr, "SQL error: %s\n", errmsg);
+        sqlite3_free(errmsg);
+        return 0;
+    }
+    return 1;
+}
+
+// Save a message to the database
+void save_message(const char *username, const char *content) 
+{
+    const char *sql = "INSERT INTO messages (username, content) VALUES (?, ?);";
+    sqlite3_stmt *stmt;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK) 
+    {
+        sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, content, -1, SQLITE_STATIC);
+        sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+    }
+}
+
 void *handle_client(void *arg) 
 {
     int client_fd = *(int *)arg;
-    free(arg); // Free the allocated memory for client_fd
+    free(arg);
     char buffer[1024];
     int authenticated = 0;
     char username[64] = {0};
-  
+    int idx = -1;
+
     while (!authenticated) 
     {
         int bytes = recv(client_fd, buffer, sizeof(buffer) - 1, 0); // Receive data from client
@@ -216,8 +364,13 @@ void *handle_client(void *arg)
         if (clients[i] == 0) 
         {
             clients[i] = client_fd;
+            idx = i;
             break;
         }
+    }
+    if (idx >= 0) {
+        client_states[idx].fd = client_fd;
+        strncpy(client_states[idx].username, username, 63);
     }
     pthread_mutex_unlock(&clients_mutex);
 
@@ -229,7 +382,7 @@ void *handle_client(void *arg)
 
     while (1) 
     {
-        int bytes = recv(client_fd, buffer, sizeof(buffer) - 1, 0); // Receive message from client
+        int bytes = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
         if (bytes <= 0) break;
         buffer[bytes] = '\0';
 
@@ -247,78 +400,76 @@ void *handle_client(void *arg)
             continue;
         }
 
+        // @target@ <username>
+        if (strncmp(buffer, "@target@", 8) == 0) {
+            char target[64], msg[1024];
+            if (sscanf(buffer + 8, "%63s %[^\n]", target, msg) == 2) {
+                if (!is_online(target)) {
+                    char msgbuf[128];
+                    snprintf(msgbuf, sizeof(msgbuf), "Nguoi dung %s khong online!\n", target);
+                    send(client_fd, msgbuf, strlen(msgbuf), 0);
+                    continue;
+                }
+                if (strcmp(target, username) == 0) {
+                    char *msgbuf = "Khong the chat rieng voi chinh ban!\n";
+                    send(client_fd, msgbuf, strlen(msgbuf), 0);
+                    continue;
+                }
+                int target_fd = find_fd_by_username(target);
+                if (target_fd == 0) {
+                    char msgbuf[128];
+                    snprintf(msgbuf, sizeof(msgbuf), "Khong gui duoc cho %s!\n", target);
+                    send(client_fd, msgbuf, strlen(msgbuf), 0);
+                    continue;
+                }
+                // Lưu lịch sử private cho cả 2 phía
+                save_private_message(username, target, msg);
+                add_private_list(username, target);
+                add_private_list(target, username);
+
+                char msgbuf[1100];
+                int prefix_len = snprintf(NULL, 0, "[PRIVATE][%s]: ", username);
+                int max_msg_len = sizeof(msgbuf) - prefix_len - 2; // 2 for '\n' and '\0'
+                char *msg_to_send = msg;
+                char tmp[1024];
+                if ((int)strlen(msg) > max_msg_len) {
+                    strncpy(tmp, msg, max_msg_len);
+                    tmp[max_msg_len] = '\0';
+                    msg_to_send = tmp;
+                }
+                snprintf(msgbuf, sizeof(msgbuf), "[PRIVATE][%s]: %s\n", username, msg_to_send);
+                send(target_fd, msgbuf, strlen(msgbuf), 0);
+                // KHÔNG gửi lại cho người gửi nữa!
+                continue;
+            } else {
+                char *msgbuf = "Sai cu phap! Dung: @target@<username> <message>\n";
+                send(client_fd, msgbuf, strlen(msgbuf), 0);
+                continue;
+            }
+        }
+
+        // Tin nhắn chung
         char msg[1100];
         snprintf(msg, sizeof(msg), "[%s]: %s", username, buffer);
-
-        save_message(username, buffer); // Save message to database
-
-        broadcast(msg, client_fd); // Broadcast message to other clients
+        save_message(username, buffer);
+        broadcast(msg, client_fd);
     }
 
     cleanup:
     if (username[0]) 
     {
-        remove_online(username); // Remove user from online list
-        // Thông báo cho các client khác
+        remove_online(username);
         char msg[128];
         snprintf(msg, sizeof(msg), "[%s da roi phong chat]\n", username);
-        broadcast(msg, client_fd); // Notify other clients
+        broadcast(msg, client_fd);
     }
-    close(client_fd); // Close the client socket
+    close(client_fd);
     pthread_mutex_lock(&clients_mutex);
-    for (int i = 0; i < MAX_CLIENTS; ++i) 
-    {
-        if (clients[i] == client_fd) 
-        {
-            clients[i] = 0;
-            break;
-        }
-    }
+    clients[idx] = 0;
+    client_states[idx].fd = 0;
+    client_states[idx].username[0] = 0;
     pthread_mutex_unlock(&clients_mutex);
     return NULL;
-}
-
-// Initialize the SQLite database
-// Creates the messages table if it doesn't exist
-// Returns 1 on success, 0 on failure
-int init_db() 
-{
-    int rc = sqlite3_open("chat.db", &db); // Open the database file
-                                           // If the database file doesn't exist, it will be created
-    if (rc) 
-    {
-        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-        return 0;
-    }
-    const char *sql = "CREATE TABLE IF NOT EXISTS messages ("
-                      "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                      "username TEXT,"
-                      "content TEXT,"
-                      "timestamp DATETIME DEFAULT CURRENT_TIMESTAMP"
-                      ");";
-    char *errmsg = NULL;
-    rc = sqlite3_exec(db, sql, 0, 0, &errmsg);
-    if (rc != SQLITE_OK) 
-    {
-        fprintf(stderr, "SQL error: %s\n", errmsg);
-        sqlite3_free(errmsg);
-        return 0;
-    }
-    return 1;
-}
-
-// Save a message to the database
-void save_message(const char *username, const char *content) 
-{
-    const char *sql = "INSERT INTO messages (username, content) VALUES (?, ?);";
-    sqlite3_stmt *stmt;
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK) 
-    {
-        sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
-        sqlite3_bind_text(stmt, 2, content, -1, SQLITE_STATIC);
-        sqlite3_step(stmt);
-        sqlite3_finalize(stmt);
-    }
 }
 
 int main() 
