@@ -84,3 +84,44 @@
 [No2 da roi phong chat]
 [No2 da roi phong chat]
 [No3 da roi phong chat]
+[No2 da tham gia phong chat]
+[No2]: heloo
+Nguoi dang online:
+- No1
+- No2
+[No2]: hello
+Nguoi dang online:
+- No1
+- No2
+[No1]: hello
+[No1 da roi phong chat]
+Nguoi dang online:
+- No1
+[No2 da tham gia phong chat]
+[No2]: @online
+Nguoi dang online:
+- No1
+- No2
+Nguoi dang online:
+- No1
+- No2
+Nguoi dang online:
+- No1
+- No2
+[No3 da tham gia phong chat]
+[No3 da tham gia phong chat]
+[No3]: Hello from 3
+[No3]: Hello from 3
+Nguoi dang online:
+- No1
+- No2
+- No3
+[No2]: @onine@
+[No2]: @onine@
+Nguoi dang online:
+- No1
+- No2
+- No3
+[No2 da roi phong chat]
+[No2 da roi phong chat]
+[No1 da roi phong chat]

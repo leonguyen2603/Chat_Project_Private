@@ -232,6 +232,21 @@ void *handle_client(void *arg)
         int bytes = recv(client_fd, buffer, sizeof(buffer) - 1, 0); // Receive message from client
         if (bytes <= 0) break;
         buffer[bytes] = '\0';
+
+        // Nếu client gửi "@online@", trả về danh sách user online
+        if (strcmp(buffer, "@online@\n") == 0 || strcmp(buffer, "@online@") == 0) {
+            char online_list[2048] = "Nguoi dang online:\n";
+            pthread_mutex_lock(&clients_mutex);
+            for (int i = 0; i < online_count; ++i) {
+                strcat(online_list, "- ");
+                strcat(online_list, online_users[i]);
+                strcat(online_list, "\n");
+            }
+            pthread_mutex_unlock(&clients_mutex);
+            send(client_fd, online_list, strlen(online_list), 0);
+            continue;
+        }
+
         char msg[1100];
         snprintf(msg, sizeof(msg), "[%s]: %s", username, buffer);
 

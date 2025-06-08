@@ -9,7 +9,6 @@
 #define PORT 8888
 #define SERVER_IP "127.0.0.1"
 
-// Khai báo biến toàn cục
 char my_username[64] = "";
 
 // Prototype
@@ -25,10 +24,10 @@ void *recv_thread(void *arg)
         if (bytes <= 0) break;
         buffer[bytes] = '\0';
 
-        // Xóa dòng hiện tại (dòng nhập của user)
-        printf("\r\33[2K"); // Đưa về đầu dòng và xóa dòng
+        // Clear the current line in terminal
+        printf("\r\33[2K"); // Clear line and move cursor to beginning
 
-        printf("%s", buffer);
+        printf("%s", buffer); // Print the received message
 
         extern char my_username[64];
         save_chat_history(my_username, buffer);
