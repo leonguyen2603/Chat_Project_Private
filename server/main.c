@@ -444,13 +444,25 @@ void *handle_client(void *arg)
             send_private_list(username, client_fd);
             continue;
         }
-        // Xử lý lệnh xem lịch sử chat riêng
-        if (strncmp(buffer, "@private_history@ ", 18) == 0) {
+        // // Xử lý lệnh xem lịch sử chat riêng
+        // if (strncmp(buffer, "@private_history@ ", 18) == 0) {
+        //     char peer[64];
+        //     if (sscanf(buffer + 18, "%63s", peer) == 1) {
+        //         send_private_history(username, peer, client_fd);
+        //     } else {
+        //         char *msg = "Sai cu phap! Dung: @private_history@ <username>\n";
+        //         send(client_fd, msg, strlen(msg), 0);
+        //     }
+        //     continue;
+        // }
+        // Xử lý lệnh xem lịch sử chat riêng (không cần space giữa)
+        if (strncmp(buffer, "@private_history@", 17) == 0) {
             char peer[64];
-            if (sscanf(buffer + 18, "%63s", peer) == 1) {
+            // buffer + 17 là ngay sau @private_history@
+            if (sscanf(buffer + 17, "%63s", peer) == 1) {
                 send_private_history(username, peer, client_fd);
             } else {
-                char *msg = "Sai cu phap! Dung: @private_history@ <username>\n";
+                char *msg = "Sai cu phap! Dung: @private_history@<username>\n";
                 send(client_fd, msg, strlen(msg), 0);
             }
             continue;
