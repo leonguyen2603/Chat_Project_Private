@@ -1,11 +1,11 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/stat.h>
+#include <stdio.h> // printf, fprintf
+#include <stdlib.h> // malloc
+#include <string.h> // strcmp, strncpy
+#include <unistd.h> // close, read, write
+#include <pthread.h> // pthread_create, pthread_mutex_lock
+#include <netinet/in.h> // socket, bind, listen, accept
+#include <arpa/inet.h> // inet_pton
+#include <sys/stat.h> // mkdir
 
 #define PORT 8888
 #define SERVER_IP "127.0.0.1"
@@ -18,6 +18,9 @@ void save_private_history(const char *user1, const char *user2, const char *msg)
 void ensure_private_folder();
 void get_private_filename(const char *user1, const char *user2, char *filename, size_t size);
 
+// Thread function to receive messages from the server
+// This function runs in a separate thread to handle incoming messages
+// It prints the messages to the console and saves them to history files
 void *recv_thread(void *arg) 
 {
     int sockfd = *(int *)arg;
@@ -30,10 +33,9 @@ void *recv_thread(void *arg)
 
         printf("\r\33[2K"); // Clear the current line
 
-        // Hiển thị tin nhắn private
+        // Private messages
         if (strncmp(buffer, "[PRIVATE][", 10) == 0) 
         {
-            // In nguyên nội dung tin nhắn private từ server, không thêm bất kỳ tiền tố nào nữa
             printf("%s", buffer);
             save_private_history(my_username, "", buffer);
             printf("[You]: ");
@@ -41,21 +43,7 @@ void *recv_thread(void *arg)
             continue;
         }
 
-        // Nếu là thông báo chuyển chế độ
-        if (strstr(buffer, "====PRIVATE====") != NULL) {
-            printf("%s", buffer);
-            printf("[You]: ");
-            fflush(stdout);
-            continue;
-        }
-        if (strstr(buffer, "====ALL====") != NULL) {
-            printf("%s", buffer);
-            printf("[You]: ");
-            fflush(stdout);
-            continue;
-        }
-
-        // Mặc định: tin nhắn all
+        // Default messages
         printf("%s", buffer);
         save_chat_history(my_username, buffer);
         printf("[You]: ");
@@ -75,18 +63,29 @@ void show_menu()
     fflush(stdout);
 }
 
-void ensure_private_folder() {
+// Ensure the "private" folder exists with 0700 permissions
+// This folder is used to store private chat history files
+void ensure_private_folder() 
+{
     struct stat st = {0};
-    if (stat("private", &st) == -1) {
+    if (stat("private", &st) == -1) 
+    {
         mkdir("private", 0700);
     }
 }
 
-void get_private_filename(const char *user1, const char *user2, char *filename, size_t size) {
+// Generate a filename for private chat history based on usernames
+// The filename is in the format "private/<user1>_<user2>.txt"
+// It ensures that the usernames are in alphabetical order to avoid duplicates
+void get_private_filename(const char *user1, const char *user2, char *filename, size_t size) 
+{
     char u1[64], u2[64];
     strncpy(u1, user1, 63); u1[63] = 0;
     strncpy(u2, user2, 63); u2[63] = 0;
-    if (strcmp(u1, u2) > 0) { char tmp[64]; strcpy(tmp, u1); strcpy(u1, u2); strcpy(u2, tmp); }
+    if (strcmp(u1, u2) > 0) 
+    { 
+        char tmp[64]; strcpy(tmp, u1); strcpy(u1, u2); strcpy(u2, tmp); 
+    }
     snprintf(filename, size, "private/%s_%s.txt", u1, u2);
 }
 
@@ -130,7 +129,7 @@ int main()
     addr.sin_port = htons(PORT); // Port number
     inet_pton(AF_INET, SERVER_IP, &addr.sin_addr); // Convert IP address from text to binary
 
-    // Thêm kiểm tra kết nối lại nếu bị từ chối
+    // Try to connect to the server with retries
     int retry = 5;
     while (connect(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0 && retry-- > 0) 
     {
@@ -202,7 +201,7 @@ int main()
         }
     }
 
-    // Đã xác thực, vào giao diện chat
+    // Log in successful
     printf("=== Ban da vao phong chat ===\n");
     fflush(stdout);
     printf("[You]: ");
@@ -211,46 +210,55 @@ int main()
     pthread_t tid;
     pthread_create(&tid, NULL, recv_thread, &sockfd);
 
+    // Main loop to read user input and send messages
+    // This loop runs in the main thread and handles user input
+    // It checks for special commands like private messages, online list, etc.
     while (fgets(buffer, sizeof(buffer), stdin)) 
     {
-        // Gửi private nếu bắt đầu bằng @target@<username> 
-        if (strncmp(buffer, "@target@", 8) == 0) {
-            // Định dạng: @target@<username> <message>
+        // Send private message if it starts with "@target@"
+        if (strncmp(buffer, "@target@", 8) == 0) 
+        {
+            // Format: @target@<username> <message>
             char target[64], msg[1024];
-            if (sscanf(buffer + 8, "%63s %[^\n]", target, msg) == 2) {
-                if (strcmp(target, my_username) == 0) {
+            if (sscanf(buffer + 8, "%63s %[^\n]", target, msg) == 2) 
+            {
+                if (strcmp(target, my_username) == 0) 
+                {
                     printf("Khong the chat rieng voi chinh ban!\n[You]: ");
                     fflush(stdout);
                     continue;
                 }
-                // Gửi nguyên chuỗi lên server
+                // Send the message
                 send(sockfd, buffer, strlen(buffer), 0);
                 save_private_history(my_username, target, msg);
                 printf("[You]: ");
                 fflush(stdout);
                 continue;
-            } else {
+            } 
+            else 
+            {
                 printf("Sai cu phap! Dung: @target@<username> <message>\n[You]: ");
                 fflush(stdout);
                 continue;
             }
         }
-        // Lệnh xem danh sách private
-        if (strcmp(buffer, "@private_list@\n") == 0 || strcmp(buffer, "@private_list@") == 0) {
+        // Private list 
+        if (strcmp(buffer, "@private_list@\n") == 0 || strcmp(buffer, "@private_list@") == 0) 
+        {
             send(sockfd, buffer, strlen(buffer), 0);
             continue;
         }
-        // Lệnh xem lịch sử private
+        // Private history
         if (strncmp(buffer, "@private_history@ ", 18) == 0) {
             send(sockfd, buffer, strlen(buffer), 0);
             continue;
         }
-        // Lệnh online
+        // Online list
         if (strcmp(buffer, "@online@\n") == 0 || strcmp(buffer, "@online@") == 0) {
             send(sockfd, buffer, strlen(buffer), 0);
             continue;
         }
-        // Thoát
+        // Exit 
         if (strncmp(buffer, "@exit@", 6) == 0) 
         {
             printf("Dang thoat khoi cuoc tro chuyen...\n");
@@ -258,7 +266,7 @@ int main()
             break;
         }
 
-        // Gửi tin nhắn chung
+        // Normal message
         send(sockfd, buffer, strlen(buffer), 0);
         char line[1100];
         snprintf(line, sizeof(line), "[You]: %s", buffer);
@@ -267,6 +275,6 @@ int main()
         fflush(stdout);
     }
 
-    close(sockfd);
+    close(sockfd); // Close the socket when done
     return 0;
 }

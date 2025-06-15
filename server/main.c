@@ -7,6 +7,7 @@
 #include <sqlite3.h> // SQLite
 #include <sys/stat.h> // mkdir
 #include <errno.h>
+#include <time.h>
 
 #define PORT 8888
 #define MAX_CLIENTS 100
@@ -129,104 +130,146 @@ void broadcast(char *msg, int sender_fd)
     pthread_mutex_unlock(&clients_mutex);
 }
 
-typedef struct {
+typedef struct 
+{
     int fd;
     char username[64];
 } client_state_t;
 
 client_state_t client_states[MAX_CLIENTS];
 
-// Tạo thư mục nếu chưa có
-void ensure_private_folder() {
+// Ensure the private folder exists
+// This folder is used to store private chat history files
+// It is created with 0700 permissions (owner can read, write, execute)
+void ensure_private_folder() 
+{
     struct stat st = {0};
-    if (stat("private", &st) == -1) {
+    if (stat("private", &st) == -1) 
+    {
         mkdir("private", 0700);
     }
 }
 
 // Tạo tên file private cho 2 user (theo thứ tự alpha)
-void get_private_filename(const char *user1, const char *user2, char *filename, size_t size) {
+void get_private_filename(const char *user1, const char *user2, char *filename, size_t size) 
+{
     char u1[64], u2[64];
     strncpy(u1, user1, 63); u1[63] = 0;
     strncpy(u2, user2, 63); u2[63] = 0;
-    if (strcmp(u1, u2) > 0) { char tmp[64]; strcpy(tmp, u1); strcpy(u1, u2); strcpy(u2, tmp); }
+    if (strcmp(u1, u2) > 0) 
+    { 
+        char tmp[64]; strcpy(tmp, u1); strcpy(u1, u2); strcpy(u2, tmp); 
+    }
     snprintf(filename, size, "private/%s_%s.txt", u1, u2);
 }
 
-// Lưu tin nhắn private vào file
-void save_private_message(const char *from, const char *to, const char *msg) {
+// Save a private message to a file
+// The file is named "<from>_<to>.txt" in the "private" folder
+// The message is prefixed with "[PRIVATE][from->to]: "
+void save_private_message(const char *from, const char *to, const char *msg) 
+{
     ensure_private_folder();
     char filename[256];
     get_private_filename(from, to, filename, sizeof(filename));
     FILE *f = fopen(filename, "a");
-    if (f) {
-        fprintf(f, "[PRIVATE][%s->%s]: %s", from, to, msg);
+    if (f) 
+    {
+        time_t now = time(NULL);
+        struct tm *tm_info = localtime(&now);
+        char timebuf[32];
+        strftime(timebuf, sizeof(timebuf), "%d/%m/%y %H:%M:%S", tm_info);
+        // Ghi tin nhắn kèm thời gian
+        fprintf(f, "[PRIVATE][%s->%s]: %s  [%s]\n", from, to, msg, timebuf);
         fclose(f);
     }
 }
 
-// Thêm user vào private_list file
-void add_private_list(const char *user, const char *peer) {
+// Add a peer to the private list of a user
+// The private list is stored in a file named "private_list_<user>.txt"
+// Each line in the file is a peer's username
+void add_private_list(const char *user, const char *peer) 
+{
     ensure_private_folder();
     char filename[256];
     snprintf(filename, sizeof(filename), "private/private_list_%s.txt", user);
-    // Kiểm tra đã có chưa
+    // Check if the peer already exists in the list
     FILE *f = fopen(filename, "r");
     char line[64];
     int found = 0;
-    if (f) {
-        while (fgets(line, sizeof(line), f)) {
+    if (f) 
+    {
+        while (fgets(line, sizeof(line), f)) 
+        {
             line[strcspn(line, "\r\n")] = 0;
-            if (strcmp(line, peer) == 0) { found = 1; break; }
+            if (strcmp(line, peer) == 0) 
+            { 
+                found = 1; break; 
+            }
         }
         fclose(f);
     }
-    if (!found) {
+    if (!found) 
+    {
         f = fopen(filename, "a");
-        if (f) { fprintf(f, "%s\n", peer); fclose(f); }
+        if (f) 
+        { 
+            fprintf(f, "%s\n", peer); fclose(f); 
+        }
     }
 }
 
-// Gửi private_list cho client
-void send_private_list(const char *user, int client_fd) {
+// Send the private list of a user to the client
+// The private list is stored in a file named "private_list_<user>.txt"
+void send_private_list(const char *user, int client_fd) 
+{
     char filename[256];
     snprintf(filename, sizeof(filename), "private/private_list_%s.txt", user);
     FILE *f = fopen(filename, "r");
-    if (!f) {
+    if (!f) 
+    {
         char *msg = "Chua co lich su chat rieng voi ai!\n";
         send(client_fd, msg, strlen(msg), 0);
         return;
     }
     char line[128];
-    while (fgets(line, sizeof(line), f)) {
+    while (fgets(line, sizeof(line), f)) 
+    {
         send(client_fd, line, strlen(line), 0);
     }
     fclose(f);
 }
 
-// Gửi lịch sử private cho client
-void send_private_history(const char *user, const char *peer, int client_fd) {
+// Send the private chat history between two users to the client
+// The history is stored in a file named "<user1>_<user2>.txt" in the "private" folder
+void send_private_history(const char *user, const char *peer, int client_fd) 
+{
     char filename[256];
     get_private_filename(user, peer, filename, sizeof(filename));
     FILE *f = fopen(filename, "r");
-    if (!f) {
+    if (!f) 
+    {
         char msg[128];
         snprintf(msg, sizeof(msg), "Khong co lich su chat rieng voi %s\n", peer);
         send(client_fd, msg, strlen(msg), 0);
         return;
     }
     char line[256];
-    while (fgets(line, sizeof(line), f)) {
+    while (fgets(line, sizeof(line), f)) 
+    {
         send(client_fd, line, strlen(line), 0);
     }
     fclose(f);
 }
 
-// Tìm fd theo username
-int find_fd_by_username(const char *username) {
+// Find the file descriptor of a client by username
+// Returns the file descriptor if found, 0 otherwise
+int find_fd_by_username(const char *username) 
+{
     pthread_mutex_lock(&clients_mutex);
-    for (int i = 0; i < MAX_CLIENTS; ++i) {
-        if (client_states[i].fd != 0 && strcmp(client_states[i].username, username) == 0) {
+    for (int i = 0; i < MAX_CLIENTS; ++i) 
+    {
+        if (client_states[i].fd != 0 && strcmp(client_states[i].username, username) == 0) 
+        {
             pthread_mutex_unlock(&clients_mutex);
             return client_states[i].fd;
         }
@@ -343,13 +386,6 @@ void *handle_client(void *arg)
                 send(client_fd, msg, strlen(msg), 0);
             }
         } 
-        // else if (choice == 3) 
-        // { 
-        //     char *msg = "Cam on da su dung dich vu!\n";
-        //     send(client_fd, msg, strlen(msg), 0);
-        //     close(client_fd);
-        //     return NULL; // Exit the thread
-        // }
         else 
         {
             char *msg = "Lua chon khong hop le!\n";
@@ -368,7 +404,8 @@ void *handle_client(void *arg)
             break;
         }
     }
-    if (idx >= 0) {
+    if (idx >= 0) 
+    {
         client_states[idx].fd = client_fd;
         strncpy(client_states[idx].username, username, 63);
     }
@@ -387,10 +424,12 @@ void *handle_client(void *arg)
         buffer[bytes] = '\0';
 
         // Nếu client gửi "@online@", trả về danh sách user online
-        if (strcmp(buffer, "@online@\n") == 0 || strcmp(buffer, "@online@") == 0) {
+        if (strcmp(buffer, "@online@\n") == 0 || strcmp(buffer, "@online@") == 0) 
+        {
             char online_list[2048] = "Nguoi dang online:\n";
             pthread_mutex_lock(&clients_mutex);
-            for (int i = 0; i < online_count; ++i) {
+            for (int i = 0; i < online_count; ++i) 
+            {
                 strcat(online_list, "- ");
                 strcat(online_list, online_users[i]);
                 strcat(online_list, "\n");
@@ -400,23 +439,45 @@ void *handle_client(void *arg)
             continue;
         }
 
+        // Xử lý lệnh xem danh sách chat riêng
+        if (strcmp(buffer, "@private_list@\n") == 0 || strcmp(buffer, "@private_list@") == 0) {
+            send_private_list(username, client_fd);
+            continue;
+        }
+        // Xử lý lệnh xem lịch sử chat riêng
+        if (strncmp(buffer, "@private_history@ ", 18) == 0) {
+            char peer[64];
+            if (sscanf(buffer + 18, "%63s", peer) == 1) {
+                send_private_history(username, peer, client_fd);
+            } else {
+                char *msg = "Sai cu phap! Dung: @private_history@ <username>\n";
+                send(client_fd, msg, strlen(msg), 0);
+            }
+            continue;
+        }
+
         // @target@ <username>
-        if (strncmp(buffer, "@target@", 8) == 0) {
+        if (strncmp(buffer, "@target@", 8) == 0) 
+        {
             char target[64], msg[1024];
-            if (sscanf(buffer + 8, "%63s %[^\n]", target, msg) == 2) {
-                if (!is_online(target)) {
+            if (sscanf(buffer + 8, "%63s %[^\n]", target, msg) == 2) 
+            {
+                if (!is_online(target)) 
+                {
                     char msgbuf[128];
                     snprintf(msgbuf, sizeof(msgbuf), "Nguoi dung %s khong online!\n", target);
                     send(client_fd, msgbuf, strlen(msgbuf), 0);
                     continue;
                 }
-                if (strcmp(target, username) == 0) {
+                if (strcmp(target, username) == 0) 
+                {
                     char *msgbuf = "Khong the chat rieng voi chinh ban!\n";
                     send(client_fd, msgbuf, strlen(msgbuf), 0);
                     continue;
                 }
                 int target_fd = find_fd_by_username(target);
-                if (target_fd == 0) {
+                if (target_fd == 0) 
+                {
                     char msgbuf[128];
                     snprintf(msgbuf, sizeof(msgbuf), "Khong gui duoc cho %s!\n", target);
                     send(client_fd, msgbuf, strlen(msgbuf), 0);
@@ -432,7 +493,8 @@ void *handle_client(void *arg)
                 int max_msg_len = sizeof(msgbuf) - prefix_len - 2; // 2 for '\n' and '\0'
                 char *msg_to_send = msg;
                 char tmp[1024];
-                if ((int)strlen(msg) > max_msg_len) {
+                if ((int)strlen(msg) > max_msg_len) 
+                {
                     strncpy(tmp, msg, max_msg_len);
                     tmp[max_msg_len] = '\0';
                     msg_to_send = tmp;
@@ -441,7 +503,9 @@ void *handle_client(void *arg)
                 send(target_fd, msgbuf, strlen(msgbuf), 0);
                 // KHÔNG gửi lại cho người gửi nữa!
                 continue;
-            } else {
+            } 
+            else 
+            {
                 char *msgbuf = "Sai cu phap! Dung: @target@<username> <message>\n";
                 send(client_fd, msgbuf, strlen(msgbuf), 0);
                 continue;
